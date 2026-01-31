@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Map as MapIcon,
@@ -81,6 +81,21 @@ const CHATS = [
   { id: 2, name: "Gym Bros", msg: "Leg day lets gooo", time: "1h", active: false },
   { id: 3, name: "Campus Events", msg: "Hackathon starts in 10!", time: "3h", active: true },
 ];
+
+const CHAT_MESSAGES = {
+  1: [
+    { id: 101, text: "Anyone at the library?", self: false, time: "10:42 AM" },
+    { id: 102, text: "Yeah, 3rd floor quiet zone!", self: true, time: "10:45 AM" }
+  ],
+  2: [
+    { id: 201, text: "Leg day lets gooo", self: false, time: "8:10 AM" },
+    { id: 202, text: "Be there in 10 💪", self: true, time: "8:12 AM" }
+  ],
+  3: [
+    { id: 301, text: "Hackathon starts in 10!", self: false, time: "9:50 AM" },
+    { id: 302, text: "On my way!", self: true, time: "9:52 AM" }
+  ]
+};
 
 // --- Styles ---
 const CARD_STYLE = "relative overflow-hidden bg-[#0A0A0F] bg-opacity-80 backdrop-blur-2xl border border-white/5 rounded-[2rem] transition-all duration-500 hover:border-white/10 hover:shadow-[0_0_50px_-12px_rgba(124,58,237,0.25)] hover:-translate-y-1 group";
@@ -945,62 +960,151 @@ const DashboardView = ({ locations, events, selectedLoc, setSelectedLoc, joined,
   </main>
 );
 
-const ChatView = () => (
-  <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="h-[800px] flex gap-6">
-    <div className={cn("w-1/3 flex flex-col", CARD_STYLE, "p-0")}>
-      <div className="p-6 border-b border-white/5">
-        <h2 className="text-2xl font-display font-bold">Messages</h2>
-      </div>
-      <div className="flex-1 overflow-y-auto">
-        {CHATS.map(chat => (
-          <div key={chat.id} className="p-4 hover:bg-white/5 cursor-pointer border-b border-white/5 transition flex items-center gap-4">
-            <div className="relative">
-              <div className="w-12 h-12 rounded-full bg-vibe-purple/20 border border-white/10" />
-              {chat.active && <div className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 rounded-full border border-black" />}
-            </div>
-            <div className="flex-1">
-              <div className="flex justify-between mb-1">
-                <span className="font-bold">{chat.name}</span>
-                <span className="text-xs text-gray-500">{chat.time}</span>
+const ChatView = () => {
+  const [activeChatId, setActiveChatId] = useState(CHATS[0]?.id || null);
+  const [messagesByChat, setMessagesByChat] = useState(CHAT_MESSAGES);
+  const [draft, setDraft] = useState('');
+  const audioCtxRef = useRef(null);
+
+  const activeChat = useMemo(
+    () => CHATS.find(chat => chat.id === activeChatId),
+    [activeChatId]
+  );
+
+  const messages = messagesByChat[activeChatId] || [];
+
+  const playSendSound = () => {
+    try {
+      const AudioCtx = window.AudioContext || window.webkitAudioContext;
+      if (!AudioCtx) return;
+      const ctx = audioCtxRef.current || new AudioCtx();
+      audioCtxRef.current = ctx;
+
+      const oscillator = ctx.createOscillator();
+      const gain = ctx.createGain();
+      oscillator.type = 'sine';
+      oscillator.frequency.value = 880;
+      gain.gain.value = 0.06;
+      oscillator.connect(gain);
+      gain.connect(ctx.destination);
+      oscillator.start();
+      oscillator.stop(ctx.currentTime + 0.08);
+    } catch (err) {
+      // Ignore audio errors (autoplay restrictions, etc.)
+    }
+  };
+
+  const sendMessage = () => {
+    const text = draft.trim();
+    if (!text || !activeChatId) return;
+
+    const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    const newMessage = { id: Date.now(), text, self: true, time };
+
+    setMessagesByChat(prev => ({
+      ...prev,
+      [activeChatId]: [...(prev[activeChatId] || []), newMessage]
+    }));
+    setDraft('');
+    playSendSound();
+  };
+
+  return (
+    <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="h-[800px] flex gap-6">
+      <div className={cn("w-1/3 flex flex-col", CARD_STYLE, "p-0 bg-gradient-to-br from-vibe-purple/30 via-black/80 to-white/5")}>
+        <div className="absolute inset-0 pointer-events-none bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.08),transparent_45%)]" />
+        <div className="p-6 border-b border-white/5">
+          <h2 className="text-2xl font-display font-bold">Messages</h2>
+        </div>
+        <div className="flex-1 overflow-y-auto">
+          {CHATS.map(chat => {
+            const isActive = chat.id === activeChatId;
+            return (
+              <div
+                key={chat.id}
+                onClick={() => setActiveChatId(chat.id)}
+                className={cn(
+                  "p-4 cursor-pointer border-b border-white/5 transition flex items-center gap-4",
+                  isActive ? "bg-white/10" : "hover:bg-white/5"
+                )}
+              >
+                <div className="relative">
+                  <div className="w-12 h-12 rounded-full bg-vibe-purple/20 border border-white/10" />
+                  {chat.active && <div className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 rounded-full border border-black" />}
+                </div>
+                <div className="flex-1">
+                  <div className="flex justify-between mb-1">
+                    <span className="font-bold">{chat.name}</span>
+                    <span className="text-xs text-gray-500">{chat.time}</span>
+                  </div>
+                  <p className="text-sm text-gray-400 truncate">{chat.msg}</p>
+                </div>
               </div>
-              <p className="text-sm text-gray-400 truncate">{chat.msg}</p>
+            );
+          })}
+        </div>
+      </div>
+      <div className={cn("flex-1 flex flex-col", CARD_STYLE, "p-0 bg-gradient-to-br from-vibe-purple/20 via-black/90 to-white/5")}>
+        <div className="absolute inset-0 pointer-events-none bg-[radial-gradient(circle_at_bottom,rgba(124,58,237,0.18),transparent_50%)]" />
+        <div className="p-6 border-b border-white/5 flex justify-between items-center">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-full bg-vibe-purple" />
+            <div>
+              <h3 className="font-bold">{activeChat?.name || 'Select a chat'}</h3>
+              <span className="text-xs text-green-400">● Online</span>
             </div>
           </div>
-        ))}
-      </div>
-    </div>
-    <div className={cn("flex-1 flex flex-col", CARD_STYLE, "p-0")}>
-      <div className="p-6 border-b border-white/5 flex justify-between items-center">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-full bg-vibe-purple" />
-          <div>
-            <h3 className="font-bold">Study Group A</h3>
-            <span className="text-xs text-green-400">● Online</span>
+          <div className="flex gap-2 text-gray-400">
+            <Phone className="w-5 h-5 cursor-pointer hover:text-white" />
+            <Video className="w-5 h-5 cursor-pointer hover:text-white" />
+            <MoreVertical className="w-5 h-5 cursor-pointer hover:text-white" />
           </div>
         </div>
-        <div className="flex gap-2 text-gray-400">
-          <Phone className="w-5 h-5 cursor-pointer hover:text-white" />
-          <Video className="w-5 h-5 cursor-pointer hover:text-white" />
-          <MoreVertical className="w-5 h-5 cursor-pointer hover:text-white" />
+        <div className="flex-1 p-6 flex flex-col gap-4 overflow-y-auto">
+          {messages.length === 0 && (
+            <div className="text-gray-500 text-sm">No messages yet. Say hello 👋</div>
+          )}
+          {messages.map(message => (
+            <div
+              key={message.id}
+              className={cn(
+                "p-4 rounded-2xl max-w-md",
+                message.self
+                  ? "self-end bg-vibe-purple/20 rounded-tr-none"
+                  : "self-start bg-white/5 rounded-tl-none"
+              )}
+            >
+              <p className={cn("text-sm", message.self ? "text-white" : "text-white")}>{message.text}</p>
+              <span className={cn("text-[10px] mt-1 block", message.self ? "text-white/60" : "text-gray-500")}>{message.time}</span>
+            </div>
+          ))}
+        </div>
+        <div className="p-4 border-t border-white/5 flex gap-4">
+          <input
+            value={draft}
+            onChange={(e) => setDraft(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                e.preventDefault();
+                sendMessage();
+              }
+            }}
+            className="flex-1 bg-white/5 rounded-xl px-4 outline-none focus:bg-white/10 transition"
+            placeholder="Type a message..."
+            disabled={!activeChatId}
+          />
+          <button
+            onClick={sendMessage}
+            className="p-3 bg-vibe-purple rounded-xl hover:bg-vibe-purple/80 transition"
+            disabled={!activeChatId || !draft.trim()}
+          >
+            <Send className="w-5 h-5" />
+          </button>
         </div>
       </div>
-      <div className="flex-1 p-6 flex flex-col gap-4 overflow-y-auto">
-        <div className="self-start bg-white/5 p-4 rounded-2xl rounded-tl-none max-w-md">
-          <p className="text-sm">Anyone at the library?</p>
-          <span className="text-[10px] text-gray-500 mt-1 block">10:42 AM</span>
-        </div>
-        <div className="self-end bg-vibe-purple/20 p-4 rounded-2xl rounded-tr-none max-w-md">
-          <p className="text-sm text-vibe-purple">Yeah, 3rd floor quiet zone!</p>
-          <span className="text-[10px] text-vibe-purple/60 mt-1 block">10:45 AM</span>
-        </div>
-      </div>
-      <div className="p-4 border-t border-white/5 flex gap-4">
-        <input className="flex-1 bg-white/5 rounded-xl px-4 outline-none focus:bg-white/10 transition" placeholder="Type a message..." />
-        <button className="p-3 bg-vibe-purple rounded-xl hover:bg-vibe-purple/80 transition"><Send className="w-5 h-5" /></button>
-      </div>
-    </div>
-  </motion.div>
-);
+    </motion.div>
+  );
+};
 
 const SocialView = ({ events }) => (
   <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="h-[800px] grid grid-cols-1 md:grid-cols-3 gap-6">
