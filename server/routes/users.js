@@ -123,13 +123,14 @@ router.get('/achievements', authMiddleware, async (req, res) => {
 // Update user settings
 router.patch('/settings', authMiddleware, async (req, res) => {
     try {
-        const { ghostModeDefault, locationSharingLevel, fullName, avatarUrl } = req.body;
+        const { ghostModeDefault, locationSharingLevel, fullName, avatarUrl, preferences } = req.body;
 
         const updates = {};
         if (ghostModeDefault !== undefined) updates.ghostModeDefault = ghostModeDefault;
         if (locationSharingLevel) updates.locationSharingLevel = locationSharingLevel;
         if (fullName) updates.fullName = fullName;
         if (avatarUrl) updates.avatarUrl = avatarUrl;
+        if (preferences !== undefined) updates.preferences = preferences;
 
         const user = await User.findByIdAndUpdate(
             req.userId,

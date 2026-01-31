@@ -81,6 +81,12 @@ export const user = {
         api('/users/settings', {
             method: 'PATCH',
             body: JSON.stringify(settings)
+        }),
+
+    updatePreferences: (preferences) =>
+        api('/users/settings', {
+            method: 'PATCH',
+            body: JSON.stringify({ preferences })
         })
 };
 

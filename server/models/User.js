@@ -17,6 +17,11 @@ const userSchema = new mongoose.Schema({
         enum: ['exact', 'building', 'campus', 'off'],
         default: 'exact'
     },
+    preferences: {
+        type: [String],
+        enum: ['studying', 'sports', 'gym', 'cafe', 'gaming', 'music', 'coding'],
+        default: []
+    },
     achievements: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Achievement' }],
     friends: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }]
 }, { timestamps: true });

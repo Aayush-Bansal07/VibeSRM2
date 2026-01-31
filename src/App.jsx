@@ -88,6 +88,167 @@ const NAV_ITEM_STYLE = "relative p-4 rounded-2xl text-gray-400 transition-all du
 const NAV_ITEM_ACTIVE = "text-white bg-white/10 shadow-[0_0_20px_-5px_rgba(255,255,255,0.3)]";
 
 // --- Auth Modal Component ---
+const PREFERENCE_OPTIONS = [
+  { id: 'studying', label: 'Studying', icon: '📚', color: 'vibe-purple' },
+  { id: 'sports', label: 'Sports', icon: '⚽', color: 'vibe-rose' },
+  { id: 'gym', label: 'Gym', icon: '💪', color: 'amber-400' },
+  { id: 'cafe', label: 'Cafe', icon: '☕', color: 'vibe-cyan' },
+  { id: 'gaming', label: 'Gaming', icon: '🎮', color: 'green-400' },
+  { id: 'music', label: 'Music', icon: '🎵', color: 'pink-400' },
+  { id: 'coding', label: 'Coding', icon: '💻', color: 'blue-400' },
+];
+
+// --- Profile Modal Component ---
+const ProfileModal = ({ isOpen, onClose, currentUser, onUpdate }) => {
+  const [preferences, setPreferences] = useState(currentUser?.preferences || []);
+  const [fullName, setFullName] = useState(currentUser?.fullName || '');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
+
+  useEffect(() => {
+    if (currentUser) {
+      setPreferences(currentUser.preferences || []);
+      setFullName(currentUser.fullName || '');
+    }
+  }, [currentUser]);
+
+  if (!isOpen) return null;
+
+  const togglePreference = (prefId) => {
+    setPreferences(prev =>
+      prev.includes(prefId)
+        ? prev.filter(p => p !== prefId)
+        : [...prev, prefId]
+    );
+  };
+
+  const handleSave = async () => {
+    setLoading(true);
+    setError('');
+    setSuccess('');
+
+    try {
+      const data = await user.updateSettings({ preferences, fullName });
+      onUpdate(data.user);
+      setSuccess('Profile updated successfully!');
+      setTimeout(() => {
+        setSuccess('');
+        onClose();
+      }, 1500);
+    } catch (err) {
+      setError(err.message || 'Failed to update profile');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/80 backdrop-blur-sm">
+      <motion.div
+        initial={{ opacity: 0, scale: 0.9 }}
+        animate={{ opacity: 1, scale: 1 }}
+        exit={{ opacity: 0, scale: 0.9 }}
+        className="w-full max-w-lg bg-[#0A0A0F] border border-white/10 rounded-3xl p-8"
+      >
+        <div className="flex justify-between items-center mb-6">
+          <h2 className="text-2xl font-display font-bold">Your Profile</h2>
+          <button onClick={onClose} className="p-2 hover:bg-white/10 rounded-full"><X className="w-5 h-5" /></button>
+        </div>
+
+        {error && (
+          <div className="mb-4 p-3 bg-vibe-rose/20 border border-vibe-rose/50 rounded-xl text-sm text-vibe-rose">
+            {error}
+          </div>
+        )}
+
+        {success && (
+          <div className="mb-4 p-3 bg-green-500/20 border border-green-500/50 rounded-xl text-sm text-green-400 flex items-center gap-2">
+            <CheckCircle className="w-4 h-4" /> {success}
+          </div>
+        )}
+
+        <div className="space-y-6">
+          {/* Profile Info */}
+          <div className="flex items-center gap-4 p-4 bg-white/5 rounded-2xl">
+            <div className="w-16 h-16 rounded-full border-2 border-vibe-purple overflow-hidden">
+              <img src={`https://api.dicebear.com/7.x/notionists/svg?seed=${currentUser?.username}`} alt="User" className="w-full h-full object-cover" />
+            </div>
+            <div>
+              <p className="font-bold text-lg">{currentUser?.username}</p>
+              <p className="text-sm text-gray-400">{currentUser?.email}</p>
+            </div>
+          </div>
+
+          {/* Full Name */}
+          <div>
+            <label className="text-sm text-gray-400 block mb-2">Full Name</label>
+            <input
+              value={fullName}
+              onChange={(e) => setFullName(e.target.value)}
+              className="w-full bg-white/5 border border-white/10 rounded-xl p-3 outline-none focus:border-vibe-purple transition"
+              placeholder="Your Name"
+            />
+          </div>
+
+          {/* Preferences Section */}
+          <div>
+            <label className="text-sm text-gray-400 block mb-3">Your Interests</label>
+            <p className="text-xs text-gray-500 mb-4">Select what you enjoy on campus. This helps us personalize your experience!</p>
+            <div className="grid grid-cols-2 gap-3">
+              {PREFERENCE_OPTIONS.map((pref) => {
+                const isSelected = preferences.includes(pref.id);
+                return (
+                  <button
+                    key={pref.id}
+                    onClick={() => togglePreference(pref.id)}
+                    className={cn(
+                      "flex items-center gap-3 p-4 rounded-2xl border-2 transition-all",
+                      isSelected
+                        ? `bg-${pref.color}/20 border-${pref.color} text-white`
+                        : "bg-white/5 border-white/10 text-gray-400 hover:border-white/20 hover:text-white"
+                    )}
+                    style={isSelected ? {
+                      backgroundColor: pref.color === 'vibe-purple' ? 'rgba(124,58,237,0.2)' :
+                        pref.color === 'vibe-rose' ? 'rgba(251,113,133,0.2)' :
+                        pref.color === 'amber-400' ? 'rgba(251,191,36,0.2)' :
+                        pref.color === 'vibe-cyan' ? 'rgba(34,211,238,0.2)' :
+                        pref.color === 'green-400' ? 'rgba(74,222,128,0.2)' :
+                        pref.color === 'pink-400' ? 'rgba(244,114,182,0.2)' :
+                        'rgba(96,165,250,0.2)',
+                      borderColor: pref.color === 'vibe-purple' ? '#7c3aed' :
+                        pref.color === 'vibe-rose' ? '#fb7185' :
+                        pref.color === 'amber-400' ? '#fbbf24' :
+                        pref.color === 'vibe-cyan' ? '#22d3ee' :
+                        pref.color === 'green-400' ? '#4ade80' :
+                        pref.color === 'pink-400' ? '#f472b6' :
+                        '#60a5fa'
+                    } : {}}
+                  >
+                    <span className="text-2xl">{pref.icon}</span>
+                    <span className="font-medium">{pref.label}</span>
+                    {isSelected && <CheckCircle className="w-5 h-5 ml-auto text-green-400" />}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Save Button */}
+          <button
+            onClick={handleSave}
+            disabled={loading}
+            className="w-full py-4 bg-vibe-purple rounded-xl font-bold hover:bg-vibe-purple/80 transition disabled:opacity-50 flex items-center justify-center gap-2"
+          >
+            {loading ? 'Saving...' : 'Save Preferences'}
+          </button>
+        </div>
+      </motion.div>
+    </div>
+  );
+};
+
+// --- Auth Modal Component ---
 const AuthModal = ({ isOpen, onClose, onAuth }) => {
   const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState('');
@@ -919,6 +1080,8 @@ export default function App() {
   // New state for backend connection
   const [currentUser, setCurrentUser] = useState(null);
   const [showAuthModal, setShowAuthModal] = useState(false);
+  const [showProfileModal, setShowProfileModal] = useState(false);
+  const [showUserMenu, setShowUserMenu] = useState(false);
   const [activeCheckin, setActiveCheckin] = useState(null);
   const [backendConnected, setBackendConnected] = useState(false);
   const [userStats, setUserStats] = useState(null);
@@ -1216,19 +1379,30 @@ export default function App() {
 
             {/* Auth Button */}
             {currentUser ? (
-              <div className="relative group">
-                <button className="w-12 h-12 rounded-full border-2 border-vibe-purple overflow-hidden hover:scale-105 transition">
+              <div className="relative">
+                <button 
+                  onClick={() => setShowUserMenu(!showUserMenu)}
+                  className="w-12 h-12 rounded-full border-2 border-vibe-purple overflow-hidden hover:scale-105 transition"
+                >
                   <img src={`https://api.dicebear.com/7.x/notionists/svg?seed=${currentUser.username}`} alt="User" className="w-full h-full object-cover" />
                 </button>
-                <div className="absolute right-0 top-14 w-48 bg-[#0A0A0F] border border-white/10 rounded-2xl p-3 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50">
-                  <div className="px-3 py-2 border-b border-white/10 mb-2">
-                    <p className="font-bold">{currentUser.fullName || currentUser.username}</p>
-                    <p className="text-xs text-gray-400">{currentUser.email}</p>
-                  </div>
-                  <button onClick={handleLogout} className="w-full flex items-center gap-2 px-3 py-2 rounded-xl hover:bg-white/10 text-vibe-rose">
-                    <LogOut className="w-4 h-4" /> Sign Out
-                  </button>
-                </div>
+                {showUserMenu && (
+                  <>
+                    <div className="fixed inset-0 z-40" onClick={() => setShowUserMenu(false)} />
+                    <div className="absolute right-0 top-14 w-48 bg-[#0A0A0F] border border-white/10 rounded-2xl p-3 z-50">
+                      <div className="px-3 py-2 border-b border-white/10 mb-2">
+                        <p className="font-bold">{currentUser.fullName || currentUser.username}</p>
+                        <p className="text-xs text-gray-400">{currentUser.email}</p>
+                      </div>
+                      <button onClick={() => { setShowProfileModal(true); setShowUserMenu(false); }} className="w-full flex items-center gap-2 px-3 py-2 rounded-xl hover:bg-white/10 text-white">
+                        <Settings className="w-4 h-4" /> Profile & Preferences
+                      </button>
+                      <button onClick={() => { handleLogout(); setShowUserMenu(false); }} className="w-full flex items-center gap-2 px-3 py-2 rounded-xl hover:bg-white/10 text-vibe-rose">
+                        <LogOut className="w-4 h-4" /> Sign Out
+                      </button>
+                    </div>
+                  </>
+                )}
               </div>
             ) : (
               <button
@@ -1250,6 +1424,7 @@ export default function App() {
       </div>
 
       <AuthModal isOpen={showAuthModal} onClose={() => setShowAuthModal(false)} onAuth={handleAuth} />
+      <ProfileModal isOpen={showProfileModal} onClose={() => setShowProfileModal(false)} currentUser={currentUser} onUpdate={setCurrentUser} />
       <CreateVibeModal isOpen={showCreateModal} onClose={() => setShowCreateModal(false)} onCreate={handleCreateVibe} />
 
       <div className="fixed bottom-8 right-8 z-[70] space-y-4">
